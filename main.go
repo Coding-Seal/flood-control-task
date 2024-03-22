@@ -2,33 +2,47 @@ package main
 
 import (
 	"context"
+	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"os"
+	"strconv"
 	"task/floodControl"
 	"task/floodControl/redisDB"
 	"time"
 )
 
 func main() {
-	opts := &slog.HandlerOptions{
-		Level: slog.LevelDebug,
-	}
-	logger := slog.NewJSONHandler(os.Stderr, opts)
-	slog.SetDefault(slog.New(logger))
-	slog.SetLogLoggerLevel(slog.LevelDebug)
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})))
 
-	slog.Info("Connecting to db")
+	err := godotenv.Load()
+	if err != nil {
+		slog.Error("failed to load .env", slog.Any("error", err))
+		os.Exit(1)
+	}
+	timeLimit, err := time.ParseDuration(os.Getenv("TIME_LIMIT"))
+	if err != nil {
+		slog.Error("failed to parse TIME_LIMIT", slog.Any("error", err))
+		os.Exit(1)
+	}
+	requestLimit, err := strconv.ParseInt(os.Getenv("REQUEST_LIMIT"), 10, 64)
+	if err != nil {
+		slog.Error("failed to parse REQUEST_LIMIT", slog.Any("error", err))
+		os.Exit(1)
+	}
+	rdbAddr := os.Getenv("REDIS_DB_ADDR")
+
+	slog.Info("Connecting to db", slog.String("addres", rdbAddr))
 	client := redis.NewClient(&redis.Options{
-		Addr:     "redis:6379",
+		Addr:     rdbAddr,
 		Password: "", // no password set
 		DB:       0,  // use default DB})
 	})
-	err := client.Ping(context.Background()).Err()
+	err = client.Ping(context.Background()).Err()
 	if err != nil {
 		slog.Error("failed to connect to db", slog.Any("error", err))
 	}
-	var fc FloodControl = floodControl.New(redisDB.New(client), time.Second*5, 3)
+	var fc FloodControl = floodControl.New(redisDB.New(client), timeLimit, requestLimit)
 	var userID int64 = 1
 
 	for j := 0; j < 20; j++ {
@@ -42,8 +56,8 @@ func main() {
 			slog.Debug("access denied", slog.Int64("userID", userID))
 		}
 		time.Sleep(time.Second)
-
 	}
+	slog.Info("stopping program")
 }
 
 // FloodControl интерфейс, который нужно реализовать.
