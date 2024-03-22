@@ -1,0 +1,28 @@
+version: '3'
+services:
+  redis:
+    image: redis-db
+    container_name: redis-db
+    build: redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  app:
+    image: floodcontrol
+    container_name: floodcontrol
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+    command:
+      [
+        "sh",
+        "-c",
+        "./bin/floodcontrol"
+      ]
+    links:
+      - redis
