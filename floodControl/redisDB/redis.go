@@ -8,9 +8,12 @@ import (
 )
 
 type FloodControlRepo struct {
-	db redis.Client
+	db *redis.Client
 }
 
+func New(rdb *redis.Client) *FloodControlRepo {
+	return &FloodControlRepo{db: rdb}
+}
 func (r *FloodControlRepo) GetRequestLimit(ctx context.Context, userID int64) (int64, error) {
 	result, err := r.db.Get(ctx, strconv.FormatInt(userID, 10)).Int64()
 	return result, err

@@ -14,6 +14,13 @@ type FloodController struct {
 	numReq int64
 }
 
+func New(repo *redisDB.FloodControlRepo, dur time.Duration, numReq int64) *FloodController {
+	return &FloodController{
+		repo:   repo,
+		dur:    dur,
+		numReq: numReq,
+	}
+}
 func (c *FloodController) Check(ctx context.Context, userID int64) (bool, error) {
 	limit, err := c.repo.GetRequestLimit(ctx, userID)
 	if errors.Is(err, redis.Nil) {
